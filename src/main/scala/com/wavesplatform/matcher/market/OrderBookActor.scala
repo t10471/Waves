@@ -18,11 +18,12 @@ import com.wavesplatform.utils.Base58
 import com.wavesplatform.utx.UtxPool
 import io.netty.channel.group.ChannelGroup
 import kamon.Kamon
+import kamon.metric.StartedTimer
 import play.api.libs.json._
 import scorex.account.Address
-import scorex.transaction.{AssetId, ValidationError}
 import scorex.transaction.ValidationError.{AccountBalanceError, GenericError, OrderValidationError}
 import scorex.transaction.assets.exchange._
+import scorex.transaction.{AssetId, ValidationError}
 import scorex.utils.{NTP, ScorexLogging}
 import scorex.wallet.Wallet
 
@@ -45,7 +46,10 @@ class OrderBookActor(assetPair: AssetPair,
     with ExchangeTransactionCreator {
   override def persistenceId: String = OrderBookActor.name(assetPair)
 
-  private val timer = Kamon.timer("matcher.orderbook.match").refine("pair" -> assetPair.toString)
+  private val timer       = Kamon.timer("matcher.orderbook.match")
+  private val matchTimer  = timer.refine("action" -> "match", "pair" -> assetPair.toString)
+  private val cancelTimer = timer.refine("action" -> "validate-cancel", "pair" -> assetPair.toString)
+  private val placeTimer  = timer.refine("action" -> "validate-place", "pair" -> assetPair.toString)
 
   private val snapshotCancellable = context.system.scheduler.schedule(settings.snapshotsInterval, settings.snapshotsInterval, self, SaveSnapshot)
   private val cleanupCancellable  = context.system.scheduler.schedule(settings.orderCleanupInterval, settings.orderCleanupInterval, self, OrderCleanup)
@@ -104,14 +108,17 @@ class OrderBookActor(assetPair: AssetPair,
       log.error(s"$persistenceId DeleteMessagesFailure up to $toSequenceNr, reason: $cause")
   }
 
-  private def waitingValidation: Receive = readOnlyCommands orElse {
+  private def waitingValidation(st: StartedTimer): Receive = readOnlyCommands orElse {
     case ValidationTimeoutExceeded =>
+      st.stop()
       log.warn("Validation timeout exceeded, skip incoming request")
       becomeFullCommands()
     case ValidateOrderResult(res) =>
+      st.stop()
       cancellable.foreach(_.cancel())
       handleValidateOrderResult(res)
     case ValidateCancelResult(res) =>
+      st.stop()
       cancellable.foreach(_.cancel())
       handleValidateCancelResult(res.map(x => x.orderId))
     case cancel: CancelOrder if Option(cancelInProgressOrders.getIfPresent(cancel.orderId)).nonEmpty =>
@@ -143,7 +150,7 @@ class OrderBookActor(assetPair: AssetPair,
         orderHistory ! ValidateCancelOrder(cancel, NTP.correctedTime())
         apiSender = Some(sender())
         cancellable = Some(context.system.scheduler.scheduleOnce(ValidationTimeout, self, ValidationTimeoutExceeded))
-        context.become(waitingValidation)
+        context.become(waitingValidation(cancelTimer.start()))
         cancelInProgressOrders.put(cancel.orderId, okCancel)
     }
   }
@@ -197,7 +204,7 @@ class OrderBookActor(assetPair: AssetPair,
     orderHistory ! ValidateOrder(order, NTP.correctedTime())
     apiSender = Some(sender())
     cancellable = Some(context.system.scheduler.scheduleOnce(ValidationTimeout, self, ValidationTimeoutExceeded))
-    context.become(waitingValidation)
+    context.become(waitingValidation(placeTimer.start()))
   }
 
   private def handleValidateOrderResult(res: Either[GenericError, Order]): Unit = {
@@ -208,7 +215,7 @@ class OrderBookActor(assetPair: AssetPair,
       case Right(o) =>
         log.debug(s"Order accepted: '${o.idStr()}' in '${o.assetPair.key}', trying to match ...")
         apiSender.foreach(_ ! OrderAccepted(o))
-        timer.measure(matchOrder(LimitOrder(o)))
+        matchTimer.measure(matchOrder(LimitOrder(o)))
     }
 
     becomeFullCommands()
