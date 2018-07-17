@@ -6,11 +6,13 @@ import com.wavesplatform.matcher.MatcherSettings
 import com.wavesplatform.matcher.model.Events.{Event, OrderAdded, OrderCanceled, OrderExecuted}
 import com.wavesplatform.matcher.model.LimitOrder.{Filled, OrderStatus}
 import com.wavesplatform.matcher.model.OrderHistory.OrderHistoryOrdering
+import com.wavesplatform.metrics.TimerExt
 import com.wavesplatform.state._
+import kamon.Kamon
 import org.iq80.leveldb.DB
 import play.api.libs.json.Json
-import scorex.transaction.{AssetAcc, AssetId}
 import scorex.transaction.assets.exchange.{AssetPair, Order, OrderType}
+import scorex.transaction.{AssetAcc, AssetId}
 import scorex.utils.ScorexLogging
 
 trait OrderHistory {
@@ -69,7 +71,13 @@ case class OrderHistoryImpl(db: DB, settings: MatcherSettings) extends SubStorag
   private val AddressToActiveOrdersPrefix = "a-addr-orders".getBytes(Charset)
   private val AddressPortfolioPrefix      = "portfolios".getBytes(Charset)
 
-  def addToFinal(address: String, orderId: String): Unit = {
+  private val timer = Kamon.timer("matcher.order-history.impl")
+  private val saveOpenPortfolioTimer = timer.refine("action" -> "save-open-portfolio")
+  private val saveOrderInfoTimer = timer.refine("action" -> "save-order-info")
+  private val addToFinalTimer = timer.refine("action" -> "add-to-final")
+  private val openPortfolioTimer = timer.refine("action" -> "open-portfolio")
+
+  def addToFinal(address: String, orderId: String): Unit = addToFinalTimer.measure {
     get(OrderIdsCodec)(makeKey(AddressToOrdersPrefix, address)) match {
       case Some(prev) =>
         val r = if (prev.length >= settings.maxOrdersPerRequest) {
@@ -82,7 +90,7 @@ case class OrderHistoryImpl(db: DB, settings: MatcherSettings) extends SubStorag
     }
   }
 
-  private def saveOrderInfo(event: Event): Map[String, (Order, OrderInfo)] = {
+  private def saveOrderInfo(event: Event): Map[String, (Order, OrderInfo)] = saveOrderInfoTimer.measure {
     val updatedInfo = Events.createOrderInfo(event).map {
       case (orderId, (o, oi)) => (orderId, (o, orderInfo(orderId).combine(oi)))
     }
@@ -96,11 +104,11 @@ case class OrderHistoryImpl(db: DB, settings: MatcherSettings) extends SubStorag
     updatedInfo
   }
 
-  def openPortfolio(address: String): OpenPortfolio = {
+  def openPortfolio(address: String): OpenPortfolio = openPortfolioTimer.measure {
     get(PortfolioCodec)(makeKey(AddressPortfolioPrefix, address)).map(OpenPortfolio.apply).getOrElse(OpenPortfolio.empty)
   }
 
-  def saveOpenPortfolio(event: Event): Unit = {
+  def saveOpenPortfolio(event: Event): Unit = saveOpenPortfolioTimer.measure {
     Events.createOpenPortfolio(event).foreach {
       case (address, op) =>
         val key               = makeKey(AddressPortfolioPrefix, address)

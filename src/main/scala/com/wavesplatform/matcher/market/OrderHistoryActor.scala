@@ -9,7 +9,9 @@ import com.wavesplatform.matcher.market.OrderHistoryActor.{ExpirableOrderHistory
 import com.wavesplatform.matcher.model.Events.{OrderAdded, OrderCanceled, OrderExecuted}
 import com.wavesplatform.matcher.model.LimitOrder.Filled
 import com.wavesplatform.matcher.model._
+import com.wavesplatform.metrics.TimerExt
 import com.wavesplatform.utx.UtxPool
+import kamon.Kamon
 import org.iq80.leveldb.DB
 import play.api.libs.json._
 import scorex.account.Address
@@ -25,6 +27,11 @@ import scala.language.postfixOps
 class OrderHistoryActor(db: DB, val settings: MatcherSettings, val utxPool: UtxPool, val wallet: Wallet) extends Actor with OrderValidator {
 
   val orderHistory = OrderHistoryImpl(db, settings)
+
+  private val timer = Kamon.timer("matcher.order-history")
+  private val addedTimer = timer.refine("event" -> "added")
+  private val executedTimer = timer.refine("event" -> "executed")
+  private val cancelledTimer = timer.refine("event" -> "cancelled")
 
   override def preStart(): Unit = {
     context.system.eventStream.subscribe(self, classOf[OrderAdded])
@@ -74,11 +81,11 @@ class OrderHistoryActor(db: DB, val settings: MatcherSettings, val utxPool: UtxP
         processExpirableRequest(req)
       }
     case ev: OrderAdded =>
-      orderHistory.orderAccepted(ev)
+      addedTimer.measure(orderHistory.orderAccepted(ev))
     case ev: OrderExecuted =>
-      orderHistory.orderExecuted(ev)
+      executedTimer.measure(orderHistory.orderExecuted(ev))
     case ev: OrderCanceled =>
-      orderHistory.orderCanceled(ev)
+      cancelledTimer.measure(orderHistory.orderCanceled(ev))
     case RecoverFromOrderBook(ob) =>
       recoverFromOrderBook(ob)
     case ForceCancelOrderFromHistory(id) =>
@@ -89,14 +96,13 @@ class OrderHistoryActor(db: DB, val settings: MatcherSettings, val utxPool: UtxP
     sender() ! GetOrderHistoryResponse(orderHistory.fetchOrderHistoryByPair(req.assetPair, req.address))
   }
 
-  def fetchAllOrderHistory(req: GetAllOrderHistory): Unit = {
-    req.activeOnly match {
-      case true =>
-        sender() ! GetOrderHistoryResponse(orderHistory.fetchAllActiveOrderHistory(req.address))
-      case false =>
-        sender() ! GetOrderHistoryResponse(orderHistory.fetchAllOrderHistory(req.address))
+  def fetchAllOrderHistory(req: GetAllOrderHistory): Unit =
+    if (req.activeOnly) {
+      sender() ! GetOrderHistoryResponse(orderHistory.fetchAllActiveOrderHistory(req.address))
+    } else {
+      sender() ! GetOrderHistoryResponse(orderHistory.fetchAllOrderHistory(req.address))
     }
-  }
+
 
   def forceCancelOrder(id: String): Unit = {
     orderHistory.order(id).map((_, orderHistory.orderInfo(id))) match {
