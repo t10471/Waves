@@ -114,8 +114,8 @@ class OrderHistorySpecification
     oh.orderAccepted(OrderAdded(LimitOrder(ord1)))
     oh.orderExecuted(OrderExecuted(LimitOrder(ord2), LimitOrder(ord1)))
 
-    oh.orderStatus(ord1.idStr()) shouldBe LimitOrder.Filled
-    oh.orderStatus(ord2.idStr()) shouldBe LimitOrder.Filled
+    oh.orderStatus(ord1.idStr()) shouldBe LimitOrder.Filled(10000)
+    oh.orderStatus(ord2.idStr()) shouldBe LimitOrder.Filled(10000)
 
     oh.openVolume(AssetAcc(ord1.senderPublicKey, pair.amountAsset)) shouldBe 0L
     oh.openVolume(AssetAcc(ord1.senderPublicKey, pair.priceAsset)) shouldBe 0L
@@ -138,7 +138,7 @@ class OrderHistorySpecification
     oh.orderExecuted(exec)
     oh.orderAccepted(OrderAdded(exec.submitted.partial(exec.submittedRemaining)))
 
-    oh.orderStatus(ord1.idStr()) shouldBe LimitOrder.Filled
+    oh.orderStatus(ord1.idStr()) shouldBe LimitOrder.Filled(100000000)
     oh.orderStatus(ord2.idStr()) shouldBe LimitOrder.PartiallyFilled(100000000)
 
     oh.openVolume(AssetAcc(ord1.senderPublicKey, pair.amountAsset)) shouldBe 0L
@@ -164,14 +164,14 @@ class OrderHistorySpecification
     oh.orderExecuted(exec1)
 
     oh.orderStatus(ord1.idStr()) shouldBe LimitOrder.PartiallyFilled(50000000)
-    oh.orderStatus(ord2.idStr()) shouldBe LimitOrder.Filled
+    oh.orderStatus(ord2.idStr()) shouldBe LimitOrder.Filled(50000000)
 
     val exec2 = OrderExecuted(LimitOrder(ord3), exec1.counter.partial(exec1.counterRemaining))
     oh.orderExecuted(exec2)
     oh.orderAccepted(OrderAdded(exec2.submitted.partial(exec2.submittedRemaining)))
 
-    oh.orderStatus(ord1.idStr()) shouldBe LimitOrder.Filled
-    oh.orderStatus(ord2.idStr()) shouldBe LimitOrder.Filled
+    oh.orderStatus(ord1.idStr()) shouldBe LimitOrder.Filled(100000000)
+    oh.orderStatus(ord2.idStr()) shouldBe LimitOrder.Filled(50000000)
 
     oh.openVolume(AssetAcc(ord1.senderPublicKey, pair.priceAsset)) shouldBe 0L
     oh.openVolume(AssetAcc(ord1.senderPublicKey, pair.amountAsset)) shouldBe 0L
@@ -200,7 +200,7 @@ class OrderHistorySpecification
     oh.orderExecuted(exec1)
     oh.orderAccepted(OrderAdded(exec1.submitted.partial(exec1.submittedRemaining)))
 
-    oh.orderStatus(ord1.idStr()) shouldBe LimitOrder.Filled
+    oh.orderStatus(ord1.idStr()) shouldBe LimitOrder.Filled(100000000)
     oh.orderStatus(ord2.idStr()) shouldBe LimitOrder.PartiallyFilled(100000000)
 
     oh.openVolume(AssetAcc(ord1.senderPublicKey, pair.amountAsset)) shouldBe 109998942L + (BigInt(ord2.matcherFee) * (210000000 - 100000000) / 210000000).bigInteger
@@ -249,7 +249,7 @@ class OrderHistorySpecification
     oh.orderCanceled(OrderCanceled(exec1.counter.partial(exec1.counterRemaining), unmatchable = false))
 
     oh.orderStatus(ord1.idStr()) shouldBe LimitOrder.Cancelled(1000000000)
-    oh.orderStatus(ord2.idStr()) shouldBe LimitOrder.Filled
+    oh.orderStatus(ord2.idStr()) shouldBe LimitOrder.Filled(1000000000)
 
     oh.openVolume(AssetAcc(ord1.senderPublicKey, pair.amountAsset)) shouldBe 0L
     oh.openVolume(AssetAcc(ord1.senderPublicKey, pair.priceAsset)) shouldBe 0L
@@ -270,7 +270,7 @@ class OrderHistorySpecification
     oh.orderExecuted(exec1)
 
     oh.orderStatus(ord1.idStr()) shouldBe LimitOrder.PartiallyFilled(100000000)
-    oh.orderStatus(ord2.idStr()) shouldBe LimitOrder.Filled
+    oh.orderStatus(ord2.idStr()) shouldBe LimitOrder.Filled(100000000)
 
     oh.openVolume(AssetAcc(ord1.senderPublicKey, pair.amountAsset)) shouldBe 0L
     oh.openVolume(AssetAcc(ord1.senderPublicKey, pair.priceAsset)) shouldBe 0.0008 * 110000000L

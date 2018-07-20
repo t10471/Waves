@@ -202,7 +202,7 @@ case class OrderHistoryImpl(db: DB, settings: MatcherSettings) extends SubStorag
 
   override def deleteOrder(address: String, orderId: String): Boolean = {
     orderStatus(orderId) match {
-      case Filled | LimitOrder.Cancelled(_) =>
+      case Filled(_) | LimitOrder.Cancelled(_) =>
         deleteFromOrders(orderId)
         deleteFromOrdersInfo(orderId)
         deleteFromAddress(address, orderId)

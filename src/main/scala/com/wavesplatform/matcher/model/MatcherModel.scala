@@ -91,9 +91,9 @@ object LimitOrder {
     val isFinal: Boolean = false
     val ordering         = 1
   }
-  case object Filled extends OrderStatus {
+  case class Filled(filled: Long) extends OrderStatus {
     val name             = "Filled"
-    def json: JsObject   = Json.obj("status" -> name)
+    def json: JsObject   = Json.obj("status" -> name, "filledAmount" -> filled)
     val isFinal: Boolean = true
     val ordering         = 3
   }
