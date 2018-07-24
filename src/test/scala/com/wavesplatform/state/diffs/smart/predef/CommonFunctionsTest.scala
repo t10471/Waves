@@ -17,7 +17,7 @@ class CommonFunctionsTest extends PropSpec with PropertyChecks with Matchers wit
       case (transfer) =>
         val result = runScript[ByteVector](
           """
-            |match tx {
+            |match input {
             | case ttx : TransferTransaction  =>  extract(ttx.transferAssetId)
             | case other => throw
             | }
@@ -36,7 +36,7 @@ class CommonFunctionsTest extends PropSpec with PropertyChecks with Matchers wit
       case (transfer) =>
         val result = runScript[Boolean](
           """
-                                          |match tx {
+                                          |match input {
                                           | case ttx : TransferTransaction  =>  isDefined(ttx.transferAssetId)
                                           | case other => throw
                                           | }
@@ -70,7 +70,7 @@ class CommonFunctionsTest extends PropSpec with PropertyChecks with Matchers wit
       case (massTransfer) =>
         val resultAmount = runScript[Long](
           """
-            |match tx {
+            |match input {
             | case mttx : MassTransferTransaction  =>  mttx.transfers[0].amount
             | case other => throw
             | }
@@ -80,7 +80,7 @@ class CommonFunctionsTest extends PropSpec with PropertyChecks with Matchers wit
         resultAmount shouldBe Right(massTransfer.transfers(0).amount)
         val resultAddress = runScript[ByteVector](
           """
-                                                      |match tx {
+                                                      |match input {
                                                       | case mttx : MassTransferTransaction  =>
                                                       |       match mttx.transfers[0].recipient {
                                                       |           case address : Address => address.bytes
@@ -94,7 +94,7 @@ class CommonFunctionsTest extends PropSpec with PropertyChecks with Matchers wit
         resultAddress shouldBe Right(ByteVector(massTransfer.transfers(0).address.bytes.arr))
         val resultLen = runScript[Long](
           """
-                                           |match tx {
+                                           |match input {
                                            | case mttx : MassTransferTransaction  =>  size(mttx.transfers)
                                            | case other => throw
                                            | }
@@ -115,7 +115,7 @@ class CommonFunctionsTest extends PropSpec with PropertyChecks with Matchers wit
       case (transfer) =>
         val result = runScript[Boolean](
           s"""
-            |match tx {
+            |match input {
             | case tx : TransferTransaction  => tx.id == base58'${transfer.id().base58}'
             | case tx : IssueTransaction => tx.fee == ${transfer.assetFee._2}
             | case tx : MassTransferTransaction => tx.timestamp == ${transfer.timestamp}
@@ -135,7 +135,7 @@ class CommonFunctionsTest extends PropSpec with PropertyChecks with Matchers wit
           runScript[Boolean](
             s"""
                |let t = 100
-               |match tx {
+               |match input {
                | case t: TransferTransaction  => t.id == base58'${transfer.id().base58}'
                | case t: IssueTransaction => t.fee == ${transfer.assetFee._2}
                | case t: MassTransferTransaction => t.timestamp == ${transfer.timestamp}
@@ -174,11 +174,11 @@ class CommonFunctionsTest extends PropSpec with PropertyChecks with Matchers wit
         val result =
           runScript[Boolean](
             s"""
-               |match tx {
-               | case tx: TransferTransaction | IssueTransaction => {
-               |  match tx {
-               |    case tx: TransferTransaction  => tx.id == base58'${transfer.id().base58}'
-               |    case tx: IssueTransaction => tx.fee == ${transfer.assetFee._2}
+               |match input {
+               | case input: TransferTransaction | IssueTransaction => {
+               |  match input {
+               |    case input: TransferTransaction  => input.id == base58'${transfer.id().base58}'
+               |    case input: IssueTransaction => input.fee == ${transfer.assetFee._2}
                |  }
                |  }
                | case other => throw
@@ -219,7 +219,7 @@ class CommonFunctionsTest extends PropSpec with PropertyChecks with Matchers wit
       }
       val transferResult = runScript[Boolean](
         s"""
-           |match tx {
+           |match input {
            |  case tx: TransferTransaction =>
            |    let goodEq = $compareClause
            |    let badAddressEq = tx.recipient == Address(base58'Mbembangwana')
@@ -237,7 +237,7 @@ class CommonFunctionsTest extends PropSpec with PropertyChecks with Matchers wit
       val dataTx = DataTransaction.create(1: Byte, t.sender, List(entry), 100000L, t.timestamp, Proofs(Seq.empty)).explicitGet()
       val dataResult = runScript[Boolean](
         s"""
-           |match tx {
+           |match input {
            |  case tx: DataTransaction =>
            |    let intEq = tx.data[0] == DataEntry("${entry.key}", ${entry.value})
            |    let intNe = tx.data[0] != DataEntry("${entry.key}", ${entry.value})
@@ -269,7 +269,7 @@ class CommonFunctionsTest extends PropSpec with PropertyChecks with Matchers wit
       try {
         runScript[Unit](
           s"""
-             |match tx {
+             |match input {
              |  case tx: TransferTransaction =>
              |    let dza = $clause
              |    throw

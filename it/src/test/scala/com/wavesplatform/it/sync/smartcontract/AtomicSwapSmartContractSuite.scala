@@ -1,5 +1,6 @@
 package com.wavesplatform.it.sync.smartcontract
 
+import com.wavesplatform.account.AddressOrAlias
 import com.wavesplatform.crypto
 import com.wavesplatform.it.api.SyncHttpApi._
 import com.wavesplatform.it.sync._
@@ -7,14 +8,13 @@ import com.wavesplatform.it.transactions.BaseTransactionSuite
 import com.wavesplatform.lang.v1.compiler.CompilerV1
 import com.wavesplatform.lang.v1.parser.Parser
 import com.wavesplatform.state._
-import com.wavesplatform.utils.dummyCompilerContext
-import org.scalatest.CancelAfterFailure
-import play.api.libs.json.JsNumber
-import com.wavesplatform.account.AddressOrAlias
 import com.wavesplatform.transaction.Proofs
 import com.wavesplatform.transaction.smart.SetScriptTransaction
 import com.wavesplatform.transaction.smart.script.v1.ScriptV1
 import com.wavesplatform.transaction.transfer._
+import com.wavesplatform.utils.dummyCompilerContext
+import org.scalatest.CancelAfterFailure
+import play.api.libs.json.JsNumber
 
 /*
 Scenario:
@@ -50,7 +50,7 @@ class AtomicSwapSmartContractSuite extends BaseTransactionSuite with CancelAfter
     let Bob = Address(base58'$BobBC1')
     let Alice = Address(base58'$AliceBC1')
 
-    match tx {
+    match input {
       case ttx: TransferTransaction =>
         let txToBob = (ttx.recipient == Bob) && (sha256(ttx.proofs[0]) == base58'$shaSecret') && ((20 + $beforeHeight) >= height)
         let backToAliceAfterHeight = ((height >= (21 + $beforeHeight)) && (ttx.recipient == Alice))

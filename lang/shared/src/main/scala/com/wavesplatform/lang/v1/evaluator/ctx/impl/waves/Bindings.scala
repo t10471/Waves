@@ -2,8 +2,8 @@ package com.wavesplatform.lang.v1.evaluator.ctx.impl.waves
 
 import com.wavesplatform.lang.v1.evaluator.ctx.CaseObj
 import com.wavesplatform.lang.v1.evaluator.ctx.impl.PureContext.fromOption
-import com.wavesplatform.lang.v1.traits.Tx._
-import com.wavesplatform.lang.v1.traits._
+import com.wavesplatform.lang.v1.traits.domain.Tx.{Header, _}
+import com.wavesplatform.lang.v1.traits.domain._
 import scodec.bits.ByteVector
 
 object Bindings {
@@ -155,9 +155,7 @@ object Bindings {
       case Data(p, data) =>
         CaseObj(
           dataTransactionType.typeRef,
-          Map("data" -> data.map(e =>
-            CaseObj(dataEntryType.typeRef, Map("key"  -> e.key, "value" -> e.value)))
-          ) ++ provenTxPart(p)
+          Map("data" -> data.map(e => CaseObj(dataEntryType.typeRef, Map("key" -> e.key, "value" -> e.value)))) ++ provenTxPart(p)
         )
       case Exchange(p, price, amount, buyMatcherFee, sellMatcherFee, buyOrder, sellOrder) =>
         CaseObj(
