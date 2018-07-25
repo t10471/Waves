@@ -80,6 +80,13 @@ class TradeBalanceAndRoundingTestSuite
     bobWavesBalanceAfter - bobWavesBalanceBefore should be(
       -adjustedAmount - (BigInt(MatcherFee) * adjustedAmount / sellOrderAmount).bigInteger.longValue())
     bobUsdBalance should be(adjustedTotal)
+
+    val aliceOrderStatus = matcherNode.orderStatus(aliceOrderId, usdWavesPair)
+    val bobOrderStatus   = matcherNode.orderStatus(bobOrder1Id, usdWavesPair)
+    aliceOrderStatus.filledAmount shouldBe Some(correctAmount(buyOrderAmount, price))
+    aliceOrderStatus.status shouldBe "Filled"
+
+    bobOrderStatus.filledAmount shouldBe Some(correctAmount(buyOrderAmount, price))
   }
 
   def correctAmount(a: Long, price: Long): Long = {
